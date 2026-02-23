@@ -9,6 +9,8 @@ const OrderItemSchema = new Schema({
   marble: [{ type: Schema.Types.ObjectId, ref: "Marble" }],
   glass: [{ type: Schema.Types.ObjectId, ref: "Glass" }],
   supplier: { type: Schema.Types.ObjectId, ref: "Supplier", required: true },
+  description: { type: String },
+  quantity: { type: Number, default: 1 },
 });
 
 const StatusHistorySchema = new Schema({

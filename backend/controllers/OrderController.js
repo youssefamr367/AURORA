@@ -41,6 +41,8 @@ class OrderController {
           marble: it.marble,
           glass: it.glass,
           supplier: it.supplierId,
+          description: it.description,
+          quantity: it.quantity || 1,
         });
       }
 

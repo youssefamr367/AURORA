@@ -15,6 +15,8 @@ const AddOrderModal = ({ onClose, refreshList }) => {
     marble: [],
     glass: [],
     supplierId: "",
+    description: "",
+    quantity: 1,
   };
   const [itemDraft, setItemDraft] = useState(emptyItem);
 
@@ -152,6 +154,17 @@ const AddOrderModal = ({ onClose, refreshList }) => {
     });
   };
 
+  const handleItemMetaChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "quantity") {
+      const num = Math.max(1, Number(value) || 1);
+      setItemDraft((d) => ({ ...d, quantity: num }));
+    } else {
+      setItemDraft((d) => ({ ...d, [name]: value }));
+    }
+  };
+
   const handleSelectionChange = (e) => {
     const { name, value } = e.target;
     setSelection((s) => ({ ...s, [name]: value }));
@@ -212,6 +225,8 @@ const AddOrderModal = ({ onClose, refreshList }) => {
           marble: i.marble,
           glass: i.glass,
           supplierId: i.supplierId,
+          description: i.description || "",
+          quantity: Number(i.quantity) || 1,
         })),
         statusSla: normalizeSla(statusSla),
       };
@@ -399,6 +414,34 @@ const AddOrderModal = ({ onClose, refreshList }) => {
             </div>
           )}
 
+          {/* Per-item meta (description & quantity) */}
+          <div className="aom-grid aom-2">
+            <div className="aom-field">
+              <label htmlFor="itemDescription">Item Description</label>
+              <textarea
+                id="itemDescription"
+                name="description"
+                placeholder="Optional notes about this item (e.g. special instructions)"
+                value={itemDraft.description}
+                onChange={handleItemMetaChange}
+                rows={3}
+              />
+            </div>
+            <div className="aom-field">
+              <label htmlFor="itemQuantity">
+                Quantity <span className="req">*</span>
+              </label>
+              <input
+                id="itemQuantity"
+                name="quantity"
+                type="number"
+                min="1"
+                value={itemDraft.quantity}
+                onChange={handleItemMetaChange}
+              />
+            </div>
+          </div>
+
           <div className="aom-actions-left">
             <button
               type="button"
@@ -486,6 +529,10 @@ const AddOrderModal = ({ onClose, refreshList }) => {
                     <div className="aom-item-main">
                       <strong>{prodName}</strong>
                       <div className="aom-muted">Supplier: {supplierName}</div>
+                      <div className="aom-muted">Qty: {it.quantity || 1}</div>
+                      {it.description && (
+                        <div className="aom-muted">Notes: {it.description}</div>
+                      )}
                       {!!it.fabrics.length && (
                         <div className="aom-muted">
                           Fabrics: {it.fabrics.length}
