@@ -60,6 +60,17 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
 
     setSlaTargetStatus(newStatus);
     setSlaMode("status");
+    setSlaEnabled(
+      !!(existing.greenUntil || existing.orangeUntil || existing.redFrom)
+    );
+    setSlaDraft({
+      greenUntil: toInput(existing.greenUntil),
+      orangeUntil: toInput(existing.orangeUntil),
+      redFrom: toInput(existing.redFrom),
+    });
+    setSlaModalOpen(true);
+  };
+
   const openSlaModalForEdit = (status) => {
     const existing = order.statusSla?.[status] || {};
     const toInput = (d) =>
@@ -117,14 +128,6 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     } finally {
       setLoading(false);
     }
-  };
-    setSlaEnabled(!!(existing.greenUntil || existing.orangeUntil || existing.redFrom));
-    setSlaDraft({
-      greenUntil: toInput(existing.greenUntil),
-      orangeUntil: toInput(existing.orangeUntil),
-      redFrom: toInput(existing.redFrom),
-    });
-    setSlaModalOpen(true);
   };
 
   const deleteOrder = async () => {
