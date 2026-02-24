@@ -33,6 +33,15 @@ const AddOrderModal = ({ onClose, refreshList }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // SLA-after-create modal (for status New)
+  const [slaModalOpen, setSlaModalOpen] = useState(false);
+  const [slaEnabled, setSlaEnabled] = useState(true);
+  const [slaDraft, setSlaDraft] = useState({
+    greenUntil: "",
+    orangeUntil: "",
+    redFrom: "",
+  });
+
   // ----- Effects -----
   useEffect(() => {
     let cancelled = false;
@@ -224,7 +233,22 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
       if (res.ok) {
         await refreshList();
-        onClose();
+
+        // After creating in status New, open SLA modal for New
+        const toInput = (d) =>
+          d ? new Date(d).toISOString().slice(0, 10) : "";
+
+        const baseSla = (data && data.statusSla && data.statusSla.New) || {};
+
+        setSlaEnabled(
+          !!(baseSla.greenUntil || baseSla.orangeUntil || baseSla.redFrom)
+        );
+        setSlaDraft({
+          greenUntil: toInput(baseSla.greenUntil),
+          orangeUntil: toInput(baseSla.orangeUntil),
+          redFrom: toInput(baseSla.redFrom),
+        });
+        setSlaModalOpen(true);
       } else {
         // Improve error messages
         let errorMsg = data.message || data.error || "Failed to create order";
@@ -249,284 +273,441 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
   // ----- UI -----
   return (
-    <div className="aom-backdrop" onMouseDown={handleBackdrop}>
-      <div
-        className="aom-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="aom-title"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="aom-header">
-          <h3 id="aom-title">New Order</h3>
-          <button
-            type="button"
-            className="aom-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
+    <>
+      <div className="aom-backdrop" onMouseDown={handleBackdrop}>
+        <div
+          className="aom-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="aom-title"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="aom-header">
+            <h3 id="aom-title">New Order</h3>
+            <button
+              type="button"
+              className="aom-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
 
-        {/* Order */}
-        <section className="aom-card">
-          <div className="aom-grid aom-2">
-            <div className="aom-field">
-              <label htmlFor="orderId">
-                Order ID <span className="req">*</span>
-              </label>
-              <input
-                id="orderId"
-                inputMode="numeric"
-                placeholder="e.g. 12045"
-                value={orderId}
-                onChange={(e) =>
-                  setOrderId(e.target.value.replace(/[^\d]/g, ""))
-                }
-              />
-              {!orderId && <div className="aom-hint">Required</div>}
+          {/* Order */}
+          <section className="aom-card">
+            <div className="aom-grid aom-2">
+              <div className="aom-field">
+                <label htmlFor="orderId">
+                  Order ID <span className="req">*</span>
+                </label>
+                <input
+                  id="orderId"
+                  inputMode="numeric"
+                  placeholder="e.g. 12045"
+                  value={orderId}
+                  onChange={(e) =>
+                    setOrderId(e.target.value.replace(/[^\d]/g, ""))
+                  }
+                />
+                {!orderId && <div className="aom-hint">Required</div>}
+              </div>
+
+              <div className="aom-field">
+                <label htmlFor="supplier">
+                  Supplier (for current item) <span className="req">*</span>
+                </label>
+                <select
+                  id="supplier"
+                  value={itemDraft.supplierId}
+                  onChange={handleSupplierChange}
+                >
+                  <option value="">— Select supplier —</option>
+                  {suppliers.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {!itemDraft.supplierId && (
+                  <div className="aom-hint">Required for adding an item</div>
+                )}
+              </div>
             </div>
+          </section>
 
+          {/* Item Builder */}
+          <section className="aom-card">
             <div className="aom-field">
-              <label htmlFor="supplier">
-                Supplier (for current item) <span className="req">*</span>
+              <label htmlFor="product">
+                Product <span className="req">*</span>
               </label>
               <select
-                id="supplier"
-                value={itemDraft.supplierId}
-                onChange={handleSupplierChange}
+                id="product"
+                value={itemDraft.productId}
+                onChange={handleProductChange}
+                disabled={!itemDraft.supplierId}
               >
-                <option value="">— Select supplier —</option>
-                {suppliers.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
+                <option value="">
+                  {!itemDraft.supplierId
+                    ? "— Please select a supplier first —"
+                    : "— Select product —"}
+                </option>
+                {filteredProducts.map((p) => (
+                  <option key={p.productId} value={p.productId}>
+                    {p.name} (#{p.productId})
                   </option>
                 ))}
               </select>
               {!itemDraft.supplierId && (
-                <div className="aom-hint">Required for adding an item</div>
+                <div className="aom-hint">Please select a supplier first</div>
+              )}
+              {itemDraft.supplierId && filteredProducts.length === 0 && (
+                <div className="aom-hint">
+                  No products available for this supplier
+                </div>
               )}
             </div>
-          </div>
-        </section>
 
-        {/* Item Builder */}
-        <section className="aom-card">
-          <div className="aom-field">
-            <label htmlFor="product">
-              Product <span className="req">*</span>
-            </label>
-            <select
-              id="product"
-              value={itemDraft.productId}
-              onChange={handleProductChange}
-              disabled={!itemDraft.supplierId}
-            >
-              <option value="">
-                {!itemDraft.supplierId
-                  ? "— Please select a supplier first —"
-                  : "— Select product —"}
-              </option>
-              {filteredProducts.map((p) => (
-                <option key={p.productId} value={p.productId}>
-                  {p.name} (#{p.productId})
-                </option>
-              ))}
-            </select>
-            {!itemDraft.supplierId && (
-              <div className="aom-hint">Please select a supplier first</div>
-            )}
-            {itemDraft.supplierId && filteredProducts.length === 0 && (
-              <div className="aom-hint">
-                No products available for this supplier
-              </div>
-            )}
-          </div>
-
-          {selProd && (
-            <div className="aom-grid aom-2">
-              {["fabrics", "eshra", "paintings", "marble", "glass"].map(
-                (field) => (
-                  <div key={field} className="aom-field">
-                    <label>{field[0].toUpperCase() + field.slice(1)}</label>
-                    <div className="aom-inline">
-                      <select
-                        name={field}
-                        value={selection[field]}
-                        onChange={handleSelectionChange}
-                      >
-                        <option value="">—</option>
-                        {(selProd[field] || []).map((opt) => (
-                          <option key={opt._id} value={opt._id}>
-                            {opt.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="aom-btn"
-                        onClick={() => addCustomization(field)}
-                      >
-                        Add
-                      </button>
-                    </div>
-
-                    {!!itemDraft[field]?.length && (
-                      <div className="aom-chips">
-                        {itemDraft[field].map((val) => {
-                          const label =
-                            selProd[field]?.find((o) => o._id === val)?.name ||
-                            val;
-                          return (
-                            <span key={val} className="aom-chip">
-                              {label}
-                              <button
-                                type="button"
-                                className="aom-x"
-                                aria-label={`Remove ${label}`}
-                                onClick={() => removeCustomization(field, val)}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })}
+            {selProd && (
+              <div className="aom-grid aom-2">
+                {["fabrics", "eshra", "paintings", "marble", "glass"].map(
+                  (field) => (
+                    <div key={field} className="aom-field">
+                      <label>{field[0].toUpperCase() + field.slice(1)}</label>
+                      <div className="aom-inline">
+                        <select
+                          name={field}
+                          value={selection[field]}
+                          onChange={handleSelectionChange}
+                        >
+                          <option value="">—</option>
+                          {(selProd[field] || []).map((opt) => (
+                            <option key={opt._id} value={opt._id}>
+                              {opt.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="aom-btn"
+                          onClick={() => addCustomization(field)}
+                        >
+                          Add
+                        </button>
                       </div>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          )}
 
-          {/* Per-item meta (description & quantity) */}
-          <div className="aom-grid aom-2">
-            <div className="aom-field">
-              <label htmlFor="itemDescription">Item Description</label>
-              <textarea
-                id="itemDescription"
-                name="description"
-                className="aom-textarea"
-                placeholder="Optional notes about this item (e.g. special instructions)"
-                value={itemDraft.description}
-                onChange={handleItemMetaChange}
-              />
-            </div>
-            <div className="aom-field">
-              <label htmlFor="itemQuantity">
-                Quantity <span className="req">*</span>
-              </label>
-              <input
-                id="itemQuantity"
-                name="quantity"
-                type="number"
-                min="1"
-                value={itemDraft.quantity}
-                onChange={handleItemMetaChange}
-              />
-            </div>
-          </div>
-
-          <div className="aom-actions-left">
-            <button
-              type="button"
-              className="aom-btn"
-              disabled={
-                !itemDraft.productId ||
-                !itemDraft.supplierId ||
-                !hasAtLeastOneCustomization(itemDraft)
-              }
-              onClick={addItem}
-              title="Product, at least one customization (fabrics, eshra, paintings, marble, or glass), and a supplier are required."
-            >
-              + Add Item
-            </button>
-          </div>
-        </section>
-
-        {/* Items */}
-        <section className="aom-card">
-          <div className="aom-card-title">Items</div>
-          {items.length === 0 ? (
-            <p className="aom-muted">No items added yet.</p>
-          ) : (
-            <ul className="aom-items">
-              {items.map((it, idx) => {
-                const prodName =
-                  products.find((p) => p.productId?.toString() === it.productId)
-                    ?.name || `#${it.productId}`;
-                const supplierName =
-                  suppliers.find((s) => s._id === it.supplierId)?.name ||
-                  it.supplierId;
-
-                return (
-                  <li key={idx} className="aom-item">
-                    <div className="aom-item-main">
-                      <strong>{prodName}</strong>
-                      <div className="aom-muted">Supplier: {supplierName}</div>
-                      <div className="aom-muted">Qty: {it.quantity || 1}</div>
-                      {it.description && (
-                        <div className="aom-muted">Notes: {it.description}</div>
-                      )}
-                      {!!it.fabrics.length && (
-                        <div className="aom-muted">
-                          Fabrics: {it.fabrics.length}
+                      {!!itemDraft[field]?.length && (
+                        <div className="aom-chips">
+                          {itemDraft[field].map((val) => {
+                            const label =
+                              selProd[field]?.find((o) => o._id === val)
+                                ?.name || val;
+                            return (
+                              <span key={val} className="aom-chip">
+                                {label}
+                                <button
+                                  type="button"
+                                  className="aom-x"
+                                  aria-label={`Remove ${label}`}
+                                  onClick={() =>
+                                    removeCustomization(field, val)
+                                  }
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="aom-link"
-                      onClick={() => removeItem(idx)}
-                      aria-label={`Remove item ${idx + 1}`}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Per-item meta (description & quantity) */}
+            <div className="aom-grid aom-2">
+              <div className="aom-field">
+                <label htmlFor="itemDescription">Item Description</label>
+                <textarea
+                  id="itemDescription"
+                  name="description"
+                  className="aom-textarea"
+                  placeholder="Optional notes about this item (e.g. special instructions)"
+                  value={itemDraft.description}
+                  onChange={handleItemMetaChange}
+                />
+              </div>
+              <div className="aom-field">
+                <label htmlFor="itemQuantity">
+                  Quantity <span className="req">*</span>
+                </label>
+                <input
+                  id="itemQuantity"
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  value={itemDraft.quantity}
+                  onChange={handleItemMetaChange}
+                />
+              </div>
+            </div>
+
+            <div className="aom-actions-left">
+              <button
+                type="button"
+                className="aom-btn"
+                disabled={
+                  !itemDraft.productId ||
+                  !itemDraft.supplierId ||
+                  !hasAtLeastOneCustomization(itemDraft)
+                }
+                onClick={addItem}
+                title="Product, at least one customization (fabrics, eshra, paintings, marble, or glass), and a supplier are required."
+              >
+                + Add Item
+              </button>
+            </div>
+          </section>
+
+          {/* Items */}
+          <section className="aom-card">
+            <div className="aom-card-title">Items</div>
+            {items.length === 0 ? (
+              <p className="aom-muted">No items added yet.</p>
+            ) : (
+              <ul className="aom-items">
+                {items.map((it, idx) => {
+                  const prodName =
+                    products.find(
+                      (p) => p.productId?.toString() === it.productId
+                    )?.name || `#${it.productId}`;
+                  const supplierName =
+                    suppliers.find((s) => s._id === it.supplierId)?.name ||
+                    it.supplierId;
+
+                  return (
+                    <li key={idx} className="aom-item">
+                      <div className="aom-item-main">
+                        <strong>{prodName}</strong>
+                        <div className="aom-muted">
+                          Supplier: {supplierName}
+                        </div>
+                        <div className="aom-muted">Qty: {it.quantity || 1}</div>
+                        {it.description && (
+                          <div className="aom-muted">
+                            Notes: {it.description}
+                          </div>
+                        )}
+                        {!!it.fabrics.length && (
+                          <div className="aom-muted">
+                            Fabrics: {it.fabrics.length}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="aom-link"
+                        onClick={() => removeItem(idx)}
+                        aria-label={`Remove item ${idx + 1}`}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* Error Message */}
+          {error && (
+            <div
+              className="aom-card"
+              style={{
+                background: "#fee",
+                border: "1px solid #fcc",
+                padding: "12px",
+                margin: "16px 0",
+              }}
+            >
+              <strong style={{ color: "#c33" }}>Error:</strong> {error}
+            </div>
           )}
-        </section>
 
-        {/* Error Message */}
-        {error && (
-          <div
-            className="aom-card"
-            style={{
-              background: "#fee",
-              border: "1px solid #fcc",
-              padding: "12px",
-              margin: "16px 0",
-            }}
-          >
-            <strong style={{ color: "#c33" }}>Error:</strong> {error}
+          {/* Footer */}
+          <div className="aom-footer">
+            <button
+              type="button"
+              className="aom-primary"
+              disabled={!formValid || loading}
+              onClick={handleSubmit}
+            >
+              {loading ? "⏳ Creating..." : "Save Order"}
+            </button>
+            <button
+              type="button"
+              className="aom-ghost"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </button>
           </div>
-        )}
-
-        {/* Footer */}
-        <div className="aom-footer">
-          <button
-            type="button"
-            className="aom-primary"
-            disabled={!formValid || loading}
-            onClick={handleSubmit}
-          >
-            {loading ? "⏳ Creating..." : "Save Order"}
-          </button>
-          <button
-            type="button"
-            className="aom-ghost"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </button>
         </div>
       </div>
-    </div>
+
+      {/* SLA modal for New status after creation */}
+      {slaModalOpen && (
+        <div
+          className="aom-backdrop"
+          onMouseDown={(e) =>
+            e.target === e.currentTarget && setSlaModalOpen(false)
+          }
+        >
+          <div
+            className="aom-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="aom-sla-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="aom-header">
+              <h3 id="aom-sla-title">SLA for status: New</h3>
+              <button
+                type="button"
+                className="aom-close"
+                onClick={() => {
+                  setSlaModalOpen(false);
+                  onClose();
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <section className="aom-card">
+              <div className="aom-field">
+                <label>Today</label>
+                <div className="aom-muted">
+                  {new Date().toLocaleDateString("en-GB", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </div>
+              </div>
+
+              <div className="aom-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={slaEnabled}
+                    onChange={(e) => setSlaEnabled(e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  Enable SLA for this order in New status
+                </label>
+              </div>
+
+              {slaEnabled && (
+                <div className="aom-grid aom-3">
+                  <div className="aom-field">
+                    <label>Green until</label>
+                    <input
+                      type="date"
+                      value={slaDraft.greenUntil}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({
+                          ...s,
+                          greenUntil: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="aom-field">
+                    <label>Orange until</label>
+                    <input
+                      type="date"
+                      value={slaDraft.orangeUntil}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({
+                          ...s,
+                          orangeUntil: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="aom-field">
+                    <label>Red from</label>
+                    <input
+                      type="date"
+                      value={slaDraft.redFrom}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({ ...s, redFrom: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <div className="aom-footer">
+              <button
+                type="button"
+                className="aom-primary"
+                onClick={async () => {
+                  const nextSla = slaEnabled
+                    ? Object.fromEntries(
+                        ["greenUntil", "orangeUntil", "redFrom"]
+                          .map((k) => [k, slaDraft[k]])
+                          .filter(([, v]) => v)
+                      )
+                    : null;
+
+                  if (nextSla && Object.keys(nextSla).length) {
+                    try {
+                      await fetch(
+                        `/api/Order/updateByProductId/${parseInt(orderId, 10)}`,
+                        {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            statusSla: { New: nextSla },
+                          }),
+                        }
+                      );
+                    } catch {
+                      // If SLA save fails, we still close; main order is already created
+                    }
+                  }
+
+                  await refreshList();
+                  setSlaModalOpen(false);
+                  onClose();
+                }}
+              >
+                Save SLA & Close
+              </button>
+              <button
+                type="button"
+                className="aom-ghost"
+                onClick={() => {
+                  setSlaModalOpen(false);
+                  onClose();
+                }}
+              >
+                Skip SLA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
