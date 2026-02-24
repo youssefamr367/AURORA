@@ -6,43 +6,24 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [savingSla, setSavingSla] = useState(false);
   const [error, setError] = useState("");
+  const [slaModalOpen, setSlaModalOpen] = useState(false);
+  const [slaTargetStatus, setSlaTargetStatus] = useState(null);
+  const [slaEnabled, setSlaEnabled] = useState(true);
+  const [slaDraft, setSlaDraft] = useState({
+    greenUntil: "",
+    orangeUntil: "",
+    redFrom: "",
+  });
 
-  const updateStatus = async (newStatus) => {
+  const applyStatusUpdate = async (newStatus, nextSlaForStatus) => {
     if (loading) return;
 
-    // Ask user for SLA dates for the target status
-    const todayIso = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-
-    const greenUntil = window.prompt(
-      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter GREEN UNTIL date (yyyy-mm-dd) or leave empty for none:`,
-      ""
-    );
-    if (greenUntil === null) return; // user cancelled
-
-    const orangeUntil = window.prompt(
-      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter ORANGE UNTIL date (yyyy-mm-dd) or leave empty for none:`,
-      ""
-    );
-    if (orangeUntil === null) return;
-
-    const redFrom = window.prompt(
-      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter RED FROM date (yyyy-mm-dd) or leave empty for none (red after orange):`,
-      ""
-    );
-    if (redFrom === null) return;
-
-    const slaForStatus = {};
-    if (greenUntil) slaForStatus.greenUntil = greenUntil;
-    if (orangeUntil) slaForStatus.orangeUntil = orangeUntil;
-    if (redFrom) slaForStatus.redFrom = redFrom;
-
     const payload = { status: newStatus };
-    if (Object.keys(slaForStatus).length) {
+    if (nextSlaForStatus && Object.keys(nextSlaForStatus).length) {
       payload.statusSla = {
         ...(order.statusSla || {}),
-        [newStatus]: slaForStatus,
+        [newStatus]: nextSlaForStatus,
       };
     }
 
@@ -69,6 +50,21 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openSlaModalForStatus = (newStatus) => {
+    const existing = order.statusSla?.[newStatus] || {};
+    const toInput = (d) =>
+      d ? new Date(d).toISOString().slice(0, 10) : "";
+
+    setSlaTargetStatus(newStatus);
+    setSlaEnabled(!!(existing.greenUntil || existing.orangeUntil || existing.redFrom));
+    setSlaDraft({
+      greenUntil: toInput(existing.greenUntil),
+      orangeUntil: toInput(existing.orangeUntil),
+      redFrom: toInput(existing.redFrom),
+    });
+    setSlaModalOpen(true);
   };
 
   const deleteOrder = async () => {
@@ -98,7 +94,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     }
   };
 
-  // Legacy SLA section removed – SLA is now configured per status change via prompts
+  // Legacy SLA section removed – SLA is now configured per status change via a dedicated modal
 
   const formatDate = (dateString) =>
     new Date(dateString).toLocaleDateString("en-US", {
@@ -204,8 +200,8 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
               <button
                 key={a.next}
                 className="aom-primary"
-                onClick={() => updateStatus(a.next)}
-                disabled={loading || deleting || savingSla}
+                onClick={() => openSlaModalForStatus(a.next)}
+                disabled={loading || deleting}
               >
                 {loading ? "⏳ Updating..." : a.label}
               </button>
@@ -214,7 +210,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
               type="button" 
               className="aom-btn" 
               onClick={deleteOrder}
-              disabled={loading || deleting || savingSla}
+              disabled={loading || deleting}
             >
               {deleting ? "⏳ Deleting..." : "🗑️ Delete"}
             </button>
@@ -222,7 +218,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
               type="button" 
               className="aom-ghost" 
               onClick={onClose}
-              disabled={loading || deleting || savingSla}
+              disabled={loading || deleting}
             >
               ✖️ Close
             </button>
@@ -232,6 +228,126 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
 
       {selectedItem && (
         <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      )}
+
+      {/* SLA Modal */}
+      {slaModalOpen && (
+        <div className="aom-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSlaModalOpen(false)}>
+          <div
+            className="aom-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sla-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="aom-header">
+              <h3 id="sla-title">SLA for status: {slaTargetStatus}</h3>
+              <button
+                type="button"
+                className="aom-close"
+                onClick={() => setSlaModalOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <section className="aom-card">
+              <div className="aom-field">
+                <label>Today</label>
+                <div className="aom-muted">
+                  {new Date().toLocaleDateString("en-GB", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </div>
+              </div>
+
+              <div className="aom-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={slaEnabled}
+                    onChange={(e) => setSlaEnabled(e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  Enable SLA for this status
+                </label>
+              </div>
+
+              {slaEnabled && (
+                <div className="aom-grid aom-3">
+                  <div className="aom-field">
+                    <label>Green until</label>
+                    <input
+                      type="date"
+                      value={slaDraft.greenUntil}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({ ...s, greenUntil: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="aom-field">
+                    <label>Orange until</label>
+                    <input
+                      type="date"
+                      value={slaDraft.orangeUntil}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({ ...s, orangeUntil: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="aom-field">
+                    <label>Red from</label>
+                    <input
+                      type="date"
+                      value={slaDraft.redFrom}
+                      onChange={(e) =>
+                        setSlaDraft((s) => ({ ...s, redFrom: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <div className="aom-footer">
+              <button
+                type="button"
+                className="aom-primary"
+                onClick={() => {
+                  const nextSla =
+                    slaEnabled
+                      ? Object.fromEntries(
+                          ["greenUntil", "orangeUntil", "redFrom"]
+                            .map((k) => [k, slaDraft[k]])
+                            .filter(([, v]) => v)
+                        )
+                      : null;
+
+                  setSlaModalOpen(false);
+                  applyStatusUpdate(slaTargetStatus, nextSla || undefined);
+                }}
+                disabled={loading}
+              >
+                Save & Continue
+              </button>
+              <button
+                type="button"
+                className="aom-ghost"
+                onClick={() => {
+                  setSlaModalOpen(false);
+                  // Change status without modifying SLA for this status
+                  applyStatusUpdate(slaTargetStatus, null);
+                }}
+                disabled={loading}
+              >
+                Skip SLA
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
