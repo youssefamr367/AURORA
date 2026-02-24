@@ -478,7 +478,7 @@ const AddOrderModal = ({ onClose, refreshList }) => {
                   id="itemDescription"
                   name="description"
                   className="aom-textarea"
-                  placeholder="Optional notes about this item (e.g. special instructions)"
+                  placeholder="Optional notes about this item "
                   value={itemDraft.description}
                   onChange={handleItemMetaChange}
                 />
