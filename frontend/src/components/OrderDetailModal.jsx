@@ -9,6 +9,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
   const [error, setError] = useState("");
   const [slaModalOpen, setSlaModalOpen] = useState(false);
   const [slaTargetStatus, setSlaTargetStatus] = useState(null);
+  const [slaMode, setSlaMode] = useState("status"); // "status" | "edit"
   const [slaEnabled, setSlaEnabled] = useState(true);
   const [slaDraft, setSlaDraft] = useState({
     greenUntil: "",
@@ -58,6 +59,65 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
       d ? new Date(d).toISOString().slice(0, 10) : "";
 
     setSlaTargetStatus(newStatus);
+    setSlaMode("status");
+  const openSlaModalForEdit = (status) => {
+    const existing = order.statusSla?.[status] || {};
+    const toInput = (d) =>
+      d ? new Date(d).toISOString().slice(0, 10) : "";
+
+    setSlaTargetStatus(status);
+    setSlaMode("edit");
+    setSlaEnabled(
+      !!(existing.greenUntil || existing.orangeUntil || existing.redFrom)
+    );
+    setSlaDraft({
+      greenUntil: toInput(existing.greenUntil),
+      orangeUntil: toInput(existing.orangeUntil),
+      redFrom: toInput(existing.redFrom),
+    });
+    setSlaModalOpen(true);
+  };
+
+  const applySlaOnlyUpdate = async (status, nextSlaForStatus) => {
+    if (loading) return;
+
+    const payload = {};
+    if (nextSlaForStatus && Object.keys(nextSlaForStatus).length) {
+      payload.statusSla = {
+        ...(order.statusSla || {}),
+        [status]: nextSlaForStatus,
+      };
+    } else {
+      // If SLA disabled, remove SLA entry for this status
+      const current = { ...(order.statusSla || {}) };
+      delete current[status];
+      payload.statusSla = Object.keys(current).length ? current : undefined;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/Order/updateByProductId/${order.orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        refreshList();
+        onClose();
+      } else {
+        setError(data.message || data.error || "Failed to update SLA");
+      }
+    } catch (err) {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
     setSlaEnabled(!!(existing.greenUntil || existing.orangeUntil || existing.redFrom));
     setSlaDraft({
       greenUntil: toInput(existing.greenUntil),
@@ -135,6 +195,16 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
               <div>
                 <span className={`aom-chip`}>{order.status}</span>
               </div>
+            </div>
+            <div className="aom-actions-left">
+              <button
+                type="button"
+                className="aom-btn"
+                onClick={() => openSlaModalForEdit(order.status)}
+                disabled={loading || deleting}
+              >
+                Edit SLA for this status
+              </button>
             </div>
           </section>
 
@@ -327,23 +397,29 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
                       : null;
 
                   setSlaModalOpen(false);
-                  applyStatusUpdate(slaTargetStatus, nextSla || undefined);
+                  if (slaMode === "status") {
+                    applyStatusUpdate(slaTargetStatus, nextSla || undefined);
+                  } else {
+                    applySlaOnlyUpdate(slaTargetStatus, nextSla || undefined);
+                  }
                 }}
                 disabled={loading}
               >
-                Save & Continue
+                Save
               </button>
               <button
                 type="button"
                 className="aom-ghost"
                 onClick={() => {
                   setSlaModalOpen(false);
-                  // Change status without modifying SLA for this status
-                  applyStatusUpdate(slaTargetStatus, null);
+                  if (slaMode === "status") {
+                    // Change status without modifying SLA for this status
+                    applyStatusUpdate(slaTargetStatus, null);
+                  }
                 }}
                 disabled={loading}
               >
-                Skip SLA
+                {slaMode === "status" ? "Skip SLA" : "Cancel"}
               </button>
             </div>
           </div>
