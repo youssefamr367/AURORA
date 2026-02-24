@@ -8,35 +8,56 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
   const [deleting, setDeleting] = useState(false);
   const [savingSla, setSavingSla] = useState(false);
   const [error, setError] = useState("");
-  const [slaDraft, setSlaDraft] = useState(() => {
-    const base = order.statusSla || {};
-    const ensure = (s) => ({
-      greenDays: base[s]?.greenDays ?? "",
-      orangeDays: base[s]?.orangeDays ?? "",
-      redDays: base[s]?.redDays ?? "",
-    });
-    return {
-      New: ensure("New"),
-      manufacturing: ensure("manufacturing"),
-      Done: ensure("Done"),
-    };
-  });
 
   const updateStatus = async (newStatus) => {
     if (loading) return;
-    
+
+    // Ask user for SLA dates for the target status
+    const todayIso = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+
+    const greenUntil = window.prompt(
+      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter GREEN UNTIL date (yyyy-mm-dd) or leave empty for none:`,
+      ""
+    );
+    if (greenUntil === null) return; // user cancelled
+
+    const orangeUntil = window.prompt(
+      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter ORANGE UNTIL date (yyyy-mm-dd) or leave empty for none:`,
+      ""
+    );
+    if (orangeUntil === null) return;
+
+    const redFrom = window.prompt(
+      `SLA for status "${newStatus}"\\nToday: ${todayIso}\\nEnter RED FROM date (yyyy-mm-dd) or leave empty for none (red after orange):`,
+      ""
+    );
+    if (redFrom === null) return;
+
+    const slaForStatus = {};
+    if (greenUntil) slaForStatus.greenUntil = greenUntil;
+    if (orangeUntil) slaForStatus.orangeUntil = orangeUntil;
+    if (redFrom) slaForStatus.redFrom = redFrom;
+
+    const payload = { status: newStatus };
+    if (Object.keys(slaForStatus).length) {
+      payload.statusSla = {
+        ...(order.statusSla || {}),
+        [newStatus]: slaForStatus,
+      };
+    }
+
     setLoading(true);
     setError("");
-    
+
     try {
       const res = await fetch(`/api/Order/updateByProductId/${order.orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
-      
+
       const data = await res.json().catch(() => ({}));
-      
+
       if (res.ok) {
         refreshList();
         onClose();
@@ -77,50 +98,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     }
   };
 
-  const normalizeSla = (raw) => {
-    const out = {};
-    for (const key of ["New", "manufacturing", "Done"]) {
-      const g = raw[key]?.greenDays;
-      const o = raw[key]?.orangeDays;
-      const r = raw[key]?.redDays;
-      const hasAny = g !== "" || o !== "" || r !== "";
-      if (hasAny) {
-        out[key] = {};
-        if (g !== "") out[key].greenDays = Number(g);
-        if (o !== "") out[key].orangeDays = Number(o);
-        if (r !== "") out[key].redDays = Number(r);
-      }
-    }
-    return Object.keys(out).length ? out : undefined;
-  };
-
-  const saveSla = async () => {
-    if (savingSla) return;
-    
-    setSavingSla(true);
-    setError("");
-    
-    try {
-      const res = await fetch(`/api/Order/updateByProductId/${order.orderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statusSla: normalizeSla(slaDraft) }),
-      });
-      
-      const data = await res.json().catch(() => ({}));
-      
-      if (res.ok) {
-        await refreshList();
-        setError(""); // Clear any previous errors
-      } else {
-        setError(data.message || data.error || "Failed to save SLA settings");
-      }
-    } catch (err) {
-      setError("Network error. Please check your connection and try again.");
-    } finally {
-      setSavingSla(false);
-    }
-  };
+  // Legacy SLA section removed – SLA is now configured per status change via prompts
 
   const formatDate = (dateString) =>
     new Date(dateString).toLocaleDateString("en-US", {
@@ -164,61 +142,21 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
             </div>
           </section>
 
-          {/* SLA Section */}
-          <section className="aom-card">
-            <div className="aom-card-title">⏱ Per-Order SLA (Days)</div>
-            <div className="aom-grid aom-3">
-              {["New", "manufacturing", "Done"].map((st) => (
-                <div key={st} className="aom-sla">
-                  <div className="aom-sla-title">{st}</div>
-                  <div className="aom-sla-grid">
-                    <label>Green ≤</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={slaDraft[st].greenDays}
-                      onChange={(e) =>
-                        setSlaDraft((s) => ({ ...s, [st]: { ...s[st], greenDays: e.target.value } }))
-                      }
-                    />
-                    <label>Orange ≤</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={slaDraft[st].orangeDays}
-                      onChange={(e) =>
-                        setSlaDraft((s) => ({ ...s, [st]: { ...s[st], orangeDays: e.target.value } }))
-                      }
-                    />
-                    <label>Red ≤</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={slaDraft[st].redDays}
-                      onChange={(e) =>
-                        setSlaDraft((s) => ({ ...s, [st]: { ...s[st], redDays: e.target.value } }))
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="aom-actions-left">
-              <button 
-                type="button" 
-                className="aom-btn" 
-                onClick={saveSla}
-                disabled={savingSla || loading || deleting}
+          {/* Error for status/SLA actions */}
+          {error && (
+            <section className="aom-card">
+              <div
+                style={{
+                  background: "#fee",
+                  border: "1px solid #fcc",
+                  padding: "12px",
+                  borderRadius: "4px",
+                }}
               >
-                {savingSla ? "⏳ Saving..." : "💾 Save SLA"}
-              </button>
-            </div>
-            {error && (
-              <div style={{ background: "#fee", border: "1px solid #fcc", padding: "12px", marginTop: "12px", borderRadius: "4px" }}>
                 <strong style={{ color: "#c33" }}>Error:</strong> {error}
               </div>
-            )}
-          </section>
+            </section>
+          )}
 
           {/* Status History */}
           {order.statusHistory?.length > 0 && (

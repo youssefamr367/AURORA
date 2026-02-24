@@ -30,12 +30,6 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
   const [items, setItems] = useState([]);
 
-  const [statusSla, setStatusSla] = useState({
-    New: { greenDays: "", orangeDays: "", redDays: "" },
-    manufacturing: { greenDays: "", orangeDays: "", redDays: "" },
-    Done: { greenDays: "", orangeDays: "", redDays: "" },
-  });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -68,7 +62,7 @@ const AddOrderModal = ({ onClose, refreshList }) => {
         return p.supplier._id.toString() === itemDraft.supplierId.toString();
       }
       // Handle supplier as string ID
-      if (typeof p.supplier === 'string') {
+      if (typeof p.supplier === "string") {
         return p.supplier === itemDraft.supplierId;
       }
       // Handle supplier as ObjectId (if not populated)
@@ -80,25 +74,14 @@ const AddOrderModal = ({ onClose, refreshList }) => {
   }, [products, itemDraft.supplierId]);
 
   const selProd = useMemo(
-    () => filteredProducts.find((p) => p.productId?.toString() === itemDraft.productId),
+    () =>
+      filteredProducts.find(
+        (p) => p.productId?.toString() === itemDraft.productId
+      ),
     [filteredProducts, itemDraft.productId]
   );
 
   // ----- Helpers -----
-  const normalizeSla = (raw) => {
-    const out = {};
-    for (const key of ["New", "manufacturing", "Done"]) {
-      const { greenDays = "", orangeDays = "", redDays = "" } = raw[key] || {};
-      const hasAny = greenDays !== "" || orangeDays !== "" || redDays !== "";
-      if (hasAny) {
-        out[key] = {};
-        if (greenDays !== "") out[key].greenDays = Number(greenDays);
-        if (orangeDays !== "") out[key].orangeDays = Number(orangeDays);
-        if (redDays !== "") out[key].redDays = Number(redDays);
-      }
-    }
-    return Object.keys(out).length ? out : undefined;
-  };
 
   const resetItemDraft = () => {
     setItemDraft(emptyItem);
@@ -197,7 +180,8 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
   const addItem = () => {
     const { productId, supplierId } = itemDraft;
-    if (!productId || !hasAtLeastOneCustomization(itemDraft) || !supplierId) return;
+    if (!productId || !hasAtLeastOneCustomization(itemDraft) || !supplierId)
+      return;
     setItems((i) => [...i, itemDraft]);
     resetItemDraft();
   };
@@ -210,10 +194,10 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
   const handleSubmit = async () => {
     if (!formValid || loading) return;
-    
+
     setLoading(true);
     setError("");
-    
+
     try {
       const payload = {
         orderId: parseInt(orderId, 10),
@@ -228,7 +212,6 @@ const AddOrderModal = ({ onClose, refreshList }) => {
           description: i.description || "",
           quantity: Number(i.quantity) || 1,
         })),
-        statusSla: normalizeSla(statusSla),
       };
 
       const res = await fetch("/api/Order/CreateOrder", {
@@ -245,17 +228,19 @@ const AddOrderModal = ({ onClose, refreshList }) => {
       } else {
         // Improve error messages
         let errorMsg = data.message || data.error || "Failed to create order";
-        
+
         // Check for duplicate order ID
-        if (errorMsg.toLowerCase().includes("duplicate") || 
-            errorMsg.toLowerCase().includes("already exists") ||
-            res.status === 400) {
+        if (
+          errorMsg.toLowerCase().includes("duplicate") ||
+          errorMsg.toLowerCase().includes("already exists") ||
+          res.status === 400
+        ) {
           errorMsg = `Order ID ${orderId} already exists. Please use a different order ID.`;
         }
-        
+
         setError(errorMsg);
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
@@ -340,8 +325,8 @@ const AddOrderModal = ({ onClose, refreshList }) => {
               disabled={!itemDraft.supplierId}
             >
               <option value="">
-                {!itemDraft.supplierId 
-                  ? "— Please select a supplier first —" 
+                {!itemDraft.supplierId
+                  ? "— Please select a supplier first —"
                   : "— Select product —"}
               </option>
               {filteredProducts.map((p) => (
@@ -354,7 +339,9 @@ const AddOrderModal = ({ onClose, refreshList }) => {
               <div className="aom-hint">Please select a supplier first</div>
             )}
             {itemDraft.supplierId && filteredProducts.length === 0 && (
-              <div className="aom-hint">No products available for this supplier</div>
+              <div className="aom-hint">
+                No products available for this supplier
+              </div>
             )}
           </div>
 
@@ -459,56 +446,6 @@ const AddOrderModal = ({ onClose, refreshList }) => {
           </div>
         </section>
 
-        {/* SLA */}
-        <section className="aom-card">
-          <div className="aom-card-title">Status SLA (days, optional)</div>
-          <div className="aom-grid aom-3">
-            {["New", "manufacturing", "Done"].map((st) => (
-              <div key={st} className="aom-sla">
-                <div className="aom-sla-title">{st}</div>
-                <div className="aom-sla-grid">
-                  <label>Green ≤</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={statusSla[st].greenDays}
-                    onChange={(e) =>
-                      setStatusSla((s) => ({
-                        ...s,
-                        [st]: { ...s[st], greenDays: e.target.value },
-                      }))
-                    }
-                  />
-                  <label>Orange ≤</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={statusSla[st].orangeDays}
-                    onChange={(e) =>
-                      setStatusSla((s) => ({
-                        ...s,
-                        [st]: { ...s[st], orangeDays: e.target.value },
-                      }))
-                    }
-                  />
-                  <label>Red ≤</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={statusSla[st].redDays}
-                    onChange={(e) =>
-                      setStatusSla((s) => ({
-                        ...s,
-                        [st]: { ...s[st], redDays: e.target.value },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Items */}
         <section className="aom-card">
           <div className="aom-card-title">Items</div>
@@ -556,7 +493,15 @@ const AddOrderModal = ({ onClose, refreshList }) => {
 
         {/* Error Message */}
         {error && (
-          <div className="aom-card" style={{ background: "#fee", border: "1px solid #fcc", padding: "12px", margin: "16px 0" }}>
+          <div
+            className="aom-card"
+            style={{
+              background: "#fee",
+              border: "1px solid #fcc",
+              padding: "12px",
+              margin: "16px 0",
+            }}
+          >
             <strong style={{ color: "#c33" }}>Error:</strong> {error}
           </div>
         )}
@@ -571,9 +516,9 @@ const AddOrderModal = ({ onClose, refreshList }) => {
           >
             {loading ? "⏳ Creating..." : "Save Order"}
           </button>
-          <button 
-            type="button" 
-            className="aom-ghost" 
+          <button
+            type="button"
+            className="aom-ghost"
             onClick={onClose}
             disabled={loading}
           >

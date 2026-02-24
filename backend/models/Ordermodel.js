@@ -27,12 +27,12 @@ const OrderSchema = new Schema(
       enum: ["New", "manufacturing", "Done", "finished"],
       default: "New",
     },
-    // Optional per-order SLA thresholds (in days) for coloring by status age
+    // Optional per-order SLA thresholds (by dates) for coloring by status age
     // Example shape:
     // {
-    //   New:            { greenDays: 1,  orangeDays: 3,  redDays: 7  },
-    //   manufacturing:  { greenDays: 1,  orangeDays: 45, redDays: 50 },
-    //   Done:           { greenDays: 1,  orangeDays: 10, redDays: 15 }
+    //   New:            { greenUntil: Date, orangeUntil: Date, redFrom: Date },
+    //   manufacturing:  { greenUntil: Date, orangeUntil: Date, redFrom: Date },
+    //   Done:           { greenUntil: Date, orangeUntil: Date, redFrom: Date }
     // }
     statusSla: {
       type: new Schema(
@@ -40,9 +40,9 @@ const OrderSchema = new Schema(
           New: {
             type: new Schema(
               {
-                greenDays: { type: Number },
-                orangeDays: { type: Number },
-                redDays: { type: Number },
+                greenUntil: { type: Date },
+                orangeUntil: { type: Date },
+                redFrom: { type: Date },
               },
               { _id: false }
             ),
@@ -50,9 +50,9 @@ const OrderSchema = new Schema(
           manufacturing: {
             type: new Schema(
               {
-                greenDays: { type: Number },
-                orangeDays: { type: Number },
-                redDays: { type: Number },
+                greenUntil: { type: Date },
+                orangeUntil: { type: Date },
+                redFrom: { type: Date },
               },
               { _id: false }
             ),
@@ -60,9 +60,9 @@ const OrderSchema = new Schema(
           Done: {
             type: new Schema(
               {
-                greenDays: { type: Number },
-                orangeDays: { type: Number },
-                redDays: { type: Number },
+                greenUntil: { type: Date },
+                orangeUntil: { type: Date },
+                redFrom: { type: Date },
               },
               { _id: false }
             ),

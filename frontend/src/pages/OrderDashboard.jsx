@@ -36,41 +36,34 @@ const OrderDashboard = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Determine color class based on how long the order has been
-  // in its current status, using backend-provided statusHistory dates.
+  // Determine color class based on current status SLA date ranges.
   const getStatusColor = (order) => {
     if (!order) return "";
     const status = order.status;
-    const hist = Array.isArray(order.statusHistory) ? order.statusHistory : [];
     const sla = order.statusSla || {};
 
-    // Find the most recent entry for the current status
-    const lastForStatus = [...hist]
-      .filter((h) => h.status === status && h.date)
-      .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const byStatus = sla[status];
+    if (!byStatus) return "";
 
-    if (!lastForStatus) return "";
+    const today = new Date().setHours(0, 0, 0, 0);
+    const greenUntil = byStatus.greenUntil
+      ? new Date(byStatus.greenUntil).setHours(0, 0, 0, 0)
+      : null;
+    const orangeUntil = byStatus.orangeUntil
+      ? new Date(byStatus.orangeUntil).setHours(0, 0, 0, 0)
+      : null;
+    const redFrom = byStatus.redFrom
+      ? new Date(byStatus.redFrom).setHours(0, 0, 0, 0)
+      : null;
 
-    const ms = Date.now() - new Date(lastForStatus.date).getTime();
-    const diffDays = Math.floor(ms / (1000 * 60 * 60 * 24));
+    if (greenUntil && today <= greenUntil) return "bg-green-200";
+    if (orangeUntil && today <= orangeUntil) return "bg-orange-200";
+    if (redFrom && today >= redFrom) return "bg-red-200";
+    if (!greenUntil && !orangeUntil && !redFrom) return "";
 
-    // pull custom thresholds if provided, else fallback to defaults
-    const byStatus = sla[status] || {};
-    const defaults = {
-      New: { greenDays: 1, orangeDays: 3, redDays: 7 },
-      manufacturing: { greenDays: 1, orangeDays: 45, redDays: 50 },
-      Done: { greenDays: 1, orangeDays: 10, redDays: 15 },
-    };
-    const th = {
-      greenDays: byStatus.greenDays ?? defaults[status]?.greenDays,
-      orangeDays: byStatus.orangeDays ?? defaults[status]?.orangeDays,
-      redDays: byStatus.redDays ?? defaults[status]?.redDays,
-    };
-
-    if (th.redDays != null && diffDays >= th.redDays) return "bg-red-200";
-    if (th.orangeDays != null && diffDays >= th.orangeDays)
-      return "bg-orange-200";
-    if (th.greenDays != null && diffDays < th.greenDays) return "bg-green-200";
+    // Fallback: if dates are partially set, treat anything after last provided as red
+    if (orangeUntil && today > orangeUntil) return "bg-red-200";
+    if (greenUntil && today > greenUntil && !orangeUntil) return "bg-orange-200";
     return "";
   };
 
