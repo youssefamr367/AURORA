@@ -11,11 +11,50 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
   const [slaTargetStatus, setSlaTargetStatus] = useState(null);
   const [slaMode, setSlaMode] = useState("status"); // "status" | "edit"
   const [slaEnabled, setSlaEnabled] = useState(true);
+  const [slaError, setSlaError] = useState("");
   const [slaDraft, setSlaDraft] = useState({
     greenUntil: "",
     orangeUntil: "",
     redFrom: "",
   });
+
+  const validateSlaOrder = (draft) => {
+    const toDay = (s) => {
+      const d = new Date(s);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (draft.greenUntil) {
+      const green = toDay(draft.greenUntil);
+      if (green <= today) {
+        setSlaError("Green date must be after today.");
+        return false;
+      }
+    }
+
+    if (draft.greenUntil && draft.orangeUntil) {
+      const green = toDay(draft.greenUntil);
+      const orange = toDay(draft.orangeUntil);
+      if (orange <= green) {
+        setSlaError("Orange date must be after Green date.");
+        return false;
+      }
+    }
+
+    if (draft.orangeUntil && draft.redFrom) {
+      const orange = toDay(draft.orangeUntil);
+      const red = toDay(draft.redFrom);
+      if (red <= orange) {
+        setSlaError("Red date must be after Orange date.");
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const applyStatusUpdate = async (newStatus, nextSlaForStatus) => {
     if (loading) return;
@@ -63,6 +102,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     setSlaEnabled(
       !!(existing.greenUntil || existing.orangeUntil || existing.redFrom)
     );
+    setSlaError("");
     setSlaDraft({
       greenUntil: toInput(existing.greenUntil),
       orangeUntil: toInput(existing.orangeUntil),
@@ -81,6 +121,7 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
     setSlaEnabled(
       !!(existing.greenUntil || existing.orangeUntil || existing.redFrom)
     );
+    setSlaError("");
     setSlaDraft({
       greenUntil: toInput(existing.greenUntil),
       orangeUntil: toInput(existing.orangeUntil),
@@ -383,6 +424,12 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
                   </div>
                 </div>
               )}
+
+              {slaError && (
+                <div className="aom-hint" style={{ color: "#dc2626", marginTop: 8 }}>
+                  {slaError}
+                </div>
+              )}
             </section>
 
             <div className="aom-footer">
@@ -390,6 +437,10 @@ const OrderDetailModal = ({ order, onClose, refreshList }) => {
                 type="button"
                 className="aom-primary"
                 onClick={() => {
+                  if (slaEnabled && !validateSlaOrder(slaDraft)) {
+                    return;
+                  }
+
                   const nextSla =
                     slaEnabled
                       ? Object.fromEntries(
