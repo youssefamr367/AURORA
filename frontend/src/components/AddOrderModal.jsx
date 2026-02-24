@@ -44,6 +44,8 @@ const AddOrderModal = ({ onClose, refreshList }) => {
   const [slaError, setSlaError] = useState("");
 
   const validateSlaOrder = (draft) => {
+    setSlaError("");
+
     const toDay = (s) => {
       const d = new Date(s);
       d.setHours(0, 0, 0, 0);
