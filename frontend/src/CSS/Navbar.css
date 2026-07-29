@@ -5,7 +5,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 }
 
 .navbar h1 {

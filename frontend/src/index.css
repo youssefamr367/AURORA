@@ -5,19 +5,35 @@
 :root {
   --primary: #1aac83;
   --error: #e7195a;
+  --app-nav-height: 78px;
 }
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   background: #f1f1f1;
   margin: 0;
   font-family: "Poppins";
   transition: background-color 0.2s ease;
+  overflow: hidden;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Prevent flash of unstyled content */
 .container {
-  min-height: 100vh;
+  height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100vh - var(--app-nav-height));
   background: #f1f1f1;
   transition: opacity 0.2s ease;
+  overflow: hidden;
 }
 
 /* Smooth page transitions */
@@ -54,6 +70,10 @@ header a {
 
 /* Mobile responsive global styles */
 @media (max-width: 768px) {
+  :root {
+    --app-nav-height: 68px;
+  }
+
   body {
     font-size: 14px;
   }

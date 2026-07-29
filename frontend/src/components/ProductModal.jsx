@@ -1,18 +1,24 @@
-import { useState, useEffect } from "react";
-import "../CSS/AddOrderModal.css"; // reuse same aom-* design system
+import { useEffect, useState } from "react";
+import {
+  deleteProduct as deleteProductApi,
+  updateProduct as updateProductApi,
+} from "../features/products/api.js";
+import {
+  createEmptyProductSelection,
+  createProductUpdatePayload,
+  findOptionName,
+  loadProductFormLists,
+  mapProductToEditForm,
+  PRODUCT_LOOKUP_FIELDS,
+  validateProductForm,
+} from "../features/products/form.js";
+import FeedbackMessage from "../shared/ui/FeedbackMessage.jsx";
+import FormMessage from "../shared/ui/FormMessage.jsx";
+import InlineConfirm from "../shared/ui/InlineConfirm.jsx";
+import "../CSS/AddOrderModal.css";
 
 const ProductModal = ({ product, onClose, refreshList }) => {
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    fabrics: [],
-    eshra: [],
-    paintings: [],
-    marble: [],
-    glass: [],
-    images: "",
-  });
-
+  const [form, setForm] = useState(() => mapProductToEditForm(product));
   const [lists, setLists] = useState({
     fabrics: [],
     eshra: [],
@@ -21,149 +27,198 @@ const ProductModal = ({ product, onClose, refreshList }) => {
     glass: [],
     suppliers: [],
   });
-
-  const [sel, setSel] = useState({
-    fabrics: "",
-    eshra: "",
-    paintings: "",
-    marble: "",
-    glass: "",
-    supplier: "",
-  });
-
+  const [selection, setSelection] = useState(() => ({
+    ...createEmptyProductSelection(),
+    supplier: product.supplier?._id || "",
+  }));
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Load lists + initialize form
   useEffect(() => {
-    Promise.all([
-      fetch("/api/fabrics/all").then(r => r.json()),
-      fetch("/api/eshra/all").then(r => r.json()),
-      fetch("/api/paintings/all").then(r => r.json()),
-      fetch("/api/marbles/all").then(r => r.json()),
-      fetch("/api/glass/all").then(r => r.json()),
-      fetch("/api/suppliers/all").then(r => r.json()),
-    ])
-      .then(([f, e, p, m, d, s]) => {
-        setLists({ fabrics: f, eshra: e, paintings: p, marble: m, glass: d, suppliers: s });
-      })
-      .catch(console.error);
+    loadProductFormLists()
+      .then((data) => setLists(data))
+      .catch((err) =>
+        setError(err.message || "Failed to load product reference data.")
+      );
 
-    setForm({
-      name: product.name,
-      description: product.description,
-      fabrics: product.fabrics.map(o => o._id),
-      eshra: product.eshra.map(o => o._id),
-      paintings: product.paintings.map(o => o._id),
-      marble: product.marble.map(o => o._id),
-      glass: product.glass.map(o => o._id),
-      images: product.images || "",
-    });
-    setSel(s => ({ ...s, supplier: product.supplier?._id || "" }));
+    setForm(mapProductToEditForm(product));
+    setSelection((current) => ({
+      ...current,
+      ...createEmptyProductSelection(),
+      supplier: product.supplier?._id || "",
+    }));
+    setFieldErrors({});
+    setError("");
+    setConfirmDelete(false);
   }, [product]);
 
-  const handleChange = e => {
-    const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+  useEffect(() => {
+    const onEsc = (event) => {
+      if (event.key === "Escape" && !loading && !deleting) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [deleting, loading, onClose]);
+
+  const handleBackdrop = (event) => {
+    if (event.target === event.currentTarget && !loading && !deleting) {
+      onClose();
+    }
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setFieldErrors((current) => ({ ...current, [name]: "" }));
+    setError("");
+  };
+
+  const handleSupplierChange = (event) => {
+    const supplierId = event.target.value;
+    setSelection((current) => ({ ...current, supplier: supplierId }));
+    setForm((current) => ({ ...current, supplierId }));
+    setFieldErrors((current) => ({ ...current, supplierId: "" }));
+    setError("");
   };
 
   const addTag = (field) => {
-    const id = sel[field];
+    const id = selection[field];
     if (!id) return;
-    setForm(f => ({
-      ...f,
-      [field]: f[field].includes(id) ? f[field] : [...f[field], id],
+
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].includes(id)
+        ? current[field]
+        : [...current[field], id],
     }));
-    setSel(s => ({ ...s, [field]: "" }));
+    setSelection((current) => ({ ...current, [field]: "" }));
   };
 
   const removeTag = (field, id) => {
-    setForm(f => ({
-      ...f,
-      [field]: f[field].filter(x => x !== id),
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].filter((value) => value !== id),
     }));
   };
 
-  // ✅ Option A: Close modal only if save succeeded
   const handleSave = async () => {
-    if (loading) return;
-    
-    setLoading(true);
+    if (loading || deleting) return;
+
+    const errors = validateProductForm(form, { requireProductId: false });
+    setFieldErrors(errors);
     setError("");
-    
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const payload = {
-        ...form,
-        supplier: sel.supplier,
-      };
-
-      const res = await fetch(`/api/Product/updateByProductId/${product.productId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        await refreshList();
-        onClose(); // closes only if success
-      } else {
-        let errorMsg = data.message || data.error || "Failed to update product";
-        setError(errorMsg);
-      }
+      await updateProductApi(
+        product.productId,
+        createProductUpdatePayload(form)
+      );
+      await refreshList();
+      onClose();
     } catch (err) {
-      setError("Network error. Please check your connection and try again.");
+      setError(
+        err.message || "Network error. Please check your connection and try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this product? This action cannot be undone.")) return;
-    if (deleting) return;
-    
+    if (deleting || loading) return;
+
     setDeleting(true);
     setError("");
-    
+
     try {
-      const res = await fetch(`/api/Product/deleteByProductId/${product.productId}`, {
-        method: "DELETE",
-      });
-      
-      const data = await res.json().catch(() => ({}));
-      
-      if (res.ok) {
-        refreshList();
-        onClose();
-      } else {
-        let errorMsg = data.message || data.error || "Failed to delete product";
-        setError(errorMsg);
-      }
+      await deleteProductApi(product.productId);
+      await refreshList();
+      onClose();
     } catch (err) {
-      setError("Network error. Please check your connection and try again.");
+      setError(
+        err.message || "Network error. Please check your connection and try again."
+      );
     } finally {
       setDeleting(false);
     }
   };
 
-  const findName = (arr, id) => arr.find(x => x._id === id)?.name || id;
+  const formValid = form.name.trim() && form.supplierId?.trim();
 
   return (
-    <div className="aom-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="aom-modal" role="dialog" aria-modal="true" aria-labelledby="aom-title">
-        {/* Header */}
+    <div className="aom-backdrop" onMouseDown={handleBackdrop}>
+      <div
+        className="aom-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="aom-title"
+      >
         <div className="aom-header">
-          <h3 id="aom-title">✏️ Edit {product.name}</h3>
-          <button type="button" className="aom-close" onClick={onClose}>×</button>
+          <h3 id="aom-title">Edit {product.name}</h3>
+          <button
+            type="button"
+            className="aom-close"
+            onClick={onClose}
+            disabled={loading || deleting}
+            aria-label="Close"
+          >
+            x
+          </button>
         </div>
 
-        {/* Product Info */}
         <section className="aom-card">
+          <div className="aom-card-title">Product Details</div>
+          <div className="aom-grid aom-2">
+            <div className="aom-field">
+              <label>Product ID</label>
+              <input value={form.productId} disabled />
+              <FormMessage>
+                Product ID is fixed here because existing orders may reference it.
+              </FormMessage>
+            </div>
+
+            <div className="aom-field">
+              <label>
+                Supplier <span className="req">*</span>
+              </label>
+              <select value={form.supplierId} onChange={handleSupplierChange}>
+                <option value="">Select supplier</option>
+                {lists.suppliers.map((supplier) => (
+                  <option key={supplier._id} value={supplier._id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.supplierId ? (
+                <FormMessage variant="error">{fieldErrors.supplierId}</FormMessage>
+              ) : (
+                <FormMessage>
+                  Changing supplier affects how this product appears during order entry.
+                </FormMessage>
+              )}
+            </div>
+          </div>
+
           <div className="aom-field">
-            <label>Name <span className="req">*</span></label>
+            <label>
+              Name <span className="req">*</span>
+            </label>
             <input name="name" value={form.name} onChange={handleChange} />
+            {fieldErrors.name ? (
+              <FormMessage variant="error">{fieldErrors.name}</FormMessage>
+            ) : null}
           </div>
 
           <div className="aom-field">
@@ -177,57 +232,54 @@ const ProductModal = ({ product, onClose, refreshList }) => {
           </div>
 
           <div className="aom-field">
-            <label>Supplier <span className="req">*</span></label>
-            <select
-              value={sel.supplier}
-              onChange={e => setSel(s => ({ ...s, supplier: e.target.value }))}
-            >
-              <option value="">— Select —</option>
-              {lists.suppliers.map(s => (
-                <option key={s._id} value={s._id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="aom-field">
             <label>Image URL</label>
             <input name="images" value={form.images} onChange={handleChange} />
           </div>
         </section>
 
-        {/* Customizations */}
         <section className="aom-card">
           <div className="aom-card-title">Customizations</div>
           <div className="aom-grid aom-2">
-            {["fabrics", "eshra", "paintings", "marble", "glass"].map(field => (
+            {PRODUCT_LOOKUP_FIELDS.map((field) => (
               <div key={field} className="aom-field">
                 <label>{field[0].toUpperCase() + field.slice(1)}</label>
                 <div className="aom-inline">
                   <select
-                    value={sel[field]}
-                    onChange={e => setSel(s => ({ ...s, [field]: e.target.value }))}
+                    value={selection[field]}
+                    onChange={(event) =>
+                      setSelection((current) => ({
+                        ...current,
+                        [field]: event.target.value,
+                      }))
+                    }
                   >
-                    <option value="">—</option>
-                    {lists[field].map(opt => (
-                      <option key={opt._id} value={opt._id}>{opt.name}</option>
+                    <option value="">Select</option>
+                    {lists[field].map((option) => (
+                      <option key={option._id} value={option._id}>
+                        {option.name}
+                      </option>
                     ))}
                   </select>
-                  <button type="button" className="aom-btn" onClick={() => addTag(field)}>
+                  <button
+                    type="button"
+                    className="aom-btn"
+                    onClick={() => addTag(field)}
+                  >
                     Add
                   </button>
                 </div>
 
                 {!!form[field].length && (
                   <div className="aom-chips">
-                    {form[field].map(id => (
+                    {form[field].map((id) => (
                       <span key={id} className="aom-chip">
-                        {findName(lists[field], id)}
+                        {findOptionName(lists[field], id)}
                         <button
                           type="button"
                           className="aom-x"
                           onClick={() => removeTag(field, id)}
                         >
-                          ×
+                          x
                         </button>
                       </span>
                     ))}
@@ -238,40 +290,53 @@ const ProductModal = ({ product, onClose, refreshList }) => {
           </div>
         </section>
 
-        {/* Error Message */}
         {error && (
-          <div className="aom-card" style={{ background: "#fee", border: "1px solid #fcc", padding: "12px", margin: "16px 0" }}>
-            <strong style={{ color: "#c33" }}>Error:</strong> {error}
-          </div>
+          <FeedbackMessage variant="error">
+            <strong>Error:</strong> {error}
+          </FeedbackMessage>
         )}
 
-        {/* Footer */}
         <div className="aom-footer">
-          <button 
-            type="button" 
-            className="aom-primary" 
+          <button
+            type="button"
+            className="aom-primary"
             onClick={handleSave}
+            disabled={!formValid || loading || deleting}
+          >
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+          <button
+            type="button"
+            className="aom-btn"
+            onClick={() => {
+              setConfirmDelete((current) => !current);
+              setError("");
+            }}
             disabled={loading || deleting}
           >
-            {loading ? "⏳ Saving..." : "💾 Save Changes"}
+            {confirmDelete ? "Keep Product" : "Delete"}
           </button>
-          <button 
-            type="button" 
-            className="aom-btn" 
-            onClick={handleDelete}
-            disabled={loading || deleting}
-          >
-            {deleting ? "⏳ Deleting..." : "🗑️ Delete"}
-          </button>
-          <button 
-            type="button" 
-            className="aom-ghost" 
+          <button
+            type="button"
+            className="aom-ghost"
             onClick={onClose}
             disabled={loading || deleting}
           >
-            ✖️ Close
+            Cancel
           </button>
         </div>
+
+        {confirmDelete && (
+          <InlineConfirm
+            title="Delete this product?"
+            description="This action cannot be undone."
+            confirmLabel={deleting ? "Deleting..." : "Confirm Delete"}
+            onConfirm={handleDelete}
+            onCancel={() => setConfirmDelete(false)}
+            confirmDisabled={loading || deleting}
+            cancelDisabled={loading || deleting}
+          />
+        )}
       </div>
     </div>
   );

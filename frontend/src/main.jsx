@@ -5,7 +5,7 @@ import App from './App';
 // @ts-ignore
 import {disableReactDevTools} from "@fvilers/disable-react-devtools";
 
-if (process.env.NODE_ENV === "production") disableReactDevTools();
+if (import.meta.env.PROD) disableReactDevTools();
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>

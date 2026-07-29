@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from "react";
-import "../CSS/AddOrderModal.css"; // reuse same CSS!
+import { createProduct as createProductApi } from "../features/products/api.js";
+import {
+  createEmptyProductForm,
+  createEmptyProductSelection,
+  createProductPayload,
+  findOptionName,
+  loadProductFormLists,
+  PRODUCT_LOOKUP_FIELDS,
+  sanitizeProductId,
+  validateProductForm,
+} from "../features/products/form.js";
+import FeedbackMessage from "../shared/ui/FeedbackMessage.jsx";
+import FormMessage from "../shared/ui/FormMessage.jsx";
+import "../CSS/AddOrderModal.css";
 
 const AddProductModal = ({ onClose, refreshList }) => {
-  // ----- State -----
-  const [form, setForm] = useState({
-    productId: "",
-    name: "",
-    description: "",
-    fabrics: [],
-    eshra: [],
-    paintings: [],
-    marble: [],
-    glass: [],
-    images: "",
-    supplierId: "",
-  });
-
+  const [form, setForm] = useState(() => createEmptyProductForm());
   const [lists, setLists] = useState({
     fabrics: [],
     eshra: [],
@@ -24,138 +24,129 @@ const AddProductModal = ({ onClose, refreshList }) => {
     glass: [],
     suppliers: [],
   });
-
-  const [sel, setSel] = useState({
-    fabrics: "",
-    eshra: "",
-    paintings: "",
-    marble: "",
-    glass: "",
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [selection, setSelection] = useState(() => createEmptyProductSelection());
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // ----- Effects -----
   useEffect(() => {
-    Promise.all([
-      fetch("/api/fabrics/all").then((r) => r.json()),
-      fetch("/api/eshra/all").then((r) => r.json()),
-      fetch("/api/paintings/all").then((r) => r.json()),
-      fetch("/api/marbles/all").then((r) => r.json()),
-      fetch("/api/glass/all").then((r) => r.json()),
-      fetch("/api/suppliers/all").then((r) => r.json()),
-    ])
-      .then(([f, e, p, m, d, s]) => {
-        setLists({
-          fabrics: f,
-          eshra: e,
-          paintings: p,
-          marble: m,
-          glass: d,
-          suppliers: s,
-        });
+    let cancelled = false;
+
+    loadProductFormLists()
+      .then((data) => {
+        if (!cancelled) {
+          setLists(data);
+        }
       })
-      .catch(console.error);
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || "Failed to load product form data.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // ----- Handlers -----
-  const handleBackdrop = (e) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
   useEffect(() => {
-    const onEsc = (e) => e.key === "Escape" && onClose();
+    const onEsc = (event) => {
+      if (event.key === "Escape" && !loading) {
+        onClose();
+      }
+    };
+
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
-  }, [onClose]);
+  }, [loading, onClose]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
+  const handleBackdrop = (event) => {
+    if (event.target === event.currentTarget && !loading) {
+      onClose();
+    }
   };
 
-  const handleSupplier = (e) => {
-    setForm((f) => ({ ...f, supplierId: e.target.value }));
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    const nextValue = name === "productId" ? sanitizeProductId(value) : value;
+
+    setForm((current) => ({ ...current, [name]: nextValue }));
+    setFieldErrors((current) => ({ ...current, [name]: "" }));
+    setError("");
+  };
+
+  const handleSupplierChange = (event) => {
+    setForm((current) => ({
+      ...current,
+      supplierId: event.target.value,
+    }));
+    setFieldErrors((current) => ({ ...current, supplierId: "" }));
+    setError("");
   };
 
   const handleSelectChange = (field, value) => {
-    setSel((s) => ({ ...s, [field]: value }));
+    setSelection((current) => ({ ...current, [field]: value }));
   };
 
   const addTag = (field) => {
-    const id = sel[field];
+    const id = selection[field];
     if (!id) return;
-    setForm((f) => ({
-      ...f,
-      [field]: f[field].includes(id) ? f[field] : [...f[field], id],
+
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].includes(id)
+        ? current[field]
+        : [...current[field], id],
     }));
-    setSel((s) => ({ ...s, [field]: "" }));
+    setSelection((current) => ({ ...current, [field]: "" }));
   };
 
   const removeTag = (field, id) => {
-    setForm((f) => ({
-      ...f,
-      [field]: f[field].filter((x) => x !== id),
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].filter((value) => value !== id),
     }));
   };
 
   const handleSubmit = async () => {
-    if (!form.productId || !form.name || !form.supplierId || loading) return;
+    if (loading) return;
 
-    setLoading(true);
+    const errors = validateProductForm(form);
+    setFieldErrors(errors);
     setError("");
 
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const payload = {
-        ...form,
-        productId: parseInt(form.productId, 10),
-        supplier: form.supplierId, // Map supplierId to supplier for backend
-      };
-      // Remove supplierId from payload since backend expects 'supplier'
-      delete payload.supplierId;
-
-      const res = await fetch("/api/Product/CreateProduct", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        refreshList();
-        onClose();
-      } else {
-        // Improve error messages
-        let errorMsg = data.message || data.error || "Failed to create product";
-        
-        // Check for duplicate product ID
-        if (errorMsg.toLowerCase().includes("already exists") || 
-            errorMsg.toLowerCase().includes("duplicate") ||
-            res.status === 400) {
-          errorMsg = `Product ID ${form.productId} already exists. Please use a different product ID.`;
-        }
-        
-        // Check for invalid supplier
-        if (errorMsg.toLowerCase().includes("supplier")) {
-          errorMsg = "Invalid supplier selected. Please select a valid supplier.";
-        }
-        
-        setError(errorMsg);
-      }
+      await createProductApi(createProductPayload(form));
+      await refreshList();
+      onClose();
     } catch (err) {
-      setError("Network error. Please check your connection and try again.");
+      let errorMsg =
+        err.message || "Network error. Please check your connection and try again.";
+      if (
+        errorMsg.toLowerCase().includes("already exists") ||
+        errorMsg.toLowerCase().includes("duplicate") ||
+        err.status === 400
+      ) {
+        errorMsg = `Product ID ${form.productId} already exists. Please use a different product ID.`;
+      }
+      if (errorMsg.toLowerCase().includes("supplier")) {
+        errorMsg = "Invalid supplier selected. Please select a valid supplier.";
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const findName = (arr, id) => arr.find((x) => x._id === id)?.name || id;
+  const formValid =
+    form.productId.trim() && form.name.trim() && form.supplierId.trim();
 
-  const formValid = form.productId && form.name && form.supplierId;
-
-  // ----- UI -----
   return (
     <div className="aom-backdrop" onMouseDown={handleBackdrop}>
       <div
@@ -164,7 +155,6 @@ const AddProductModal = ({ onClose, refreshList }) => {
         aria-modal="true"
         aria-labelledby="aom-title"
       >
-        {/* Header */}
         <div className="aom-header">
           <h3 id="aom-title">New Product</h3>
           <button
@@ -172,13 +162,14 @@ const AddProductModal = ({ onClose, refreshList }) => {
             className="aom-close"
             onClick={onClose}
             aria-label="Close"
+            disabled={loading}
           >
-            ×
+            x
           </button>
         </div>
 
-        {/* Product Info */}
         <section className="aom-card">
+          <div className="aom-card-title">Product Details</div>
           <div className="aom-grid aom-2">
             <div className="aom-field">
               <label>
@@ -191,22 +182,34 @@ const AddProductModal = ({ onClose, refreshList }) => {
                 placeholder="e.g. 101"
                 onChange={handleChange}
               />
-              {!form.productId && <div className="aom-hint">Required</div>}
+              {fieldErrors.productId ? (
+                <FormMessage variant="error">{fieldErrors.productId}</FormMessage>
+              ) : (
+                <FormMessage>
+                  Numeric only. This must stay unique across products.
+                </FormMessage>
+              )}
             </div>
 
             <div className="aom-field">
               <label>
                 Supplier <span className="req">*</span>
               </label>
-              <select value={form.supplierId} onChange={handleSupplier}>
-                <option value="">— Select supplier —</option>
-                {lists.suppliers.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
+              <select value={form.supplierId} onChange={handleSupplierChange}>
+                <option value="">Select supplier</option>
+                {lists.suppliers.map((supplier) => (
+                  <option key={supplier._id} value={supplier._id}>
+                    {supplier.name}
                   </option>
                 ))}
               </select>
-              {!form.supplierId && <div className="aom-hint">Required</div>}
+              {fieldErrors.supplierId ? (
+                <FormMessage variant="error">{fieldErrors.supplierId}</FormMessage>
+              ) : (
+                <FormMessage>
+                  Products are currently grouped by supplier in order entry.
+                </FormMessage>
+              )}
             </div>
           </div>
 
@@ -215,7 +218,13 @@ const AddProductModal = ({ onClose, refreshList }) => {
               Name <span className="req">*</span>
             </label>
             <input name="name" value={form.name} onChange={handleChange} />
-            {!form.name && <div className="aom-hint">Required</div>}
+            {fieldErrors.name ? (
+              <FormMessage variant="error">{fieldErrors.name}</FormMessage>
+            ) : (
+              <FormMessage>
+                Use the name exactly as it should appear in product and order lists.
+              </FormMessage>
+            )}
           </div>
 
           <div className="aom-field">
@@ -227,74 +236,72 @@ const AddProductModal = ({ onClose, refreshList }) => {
               className="aom-textarea"
             />
           </div>
-          
+
           <div className="aom-field">
             <label>Image URL</label>
             <input name="images" value={form.images} onChange={handleChange} />
+            <FormMessage>
+              Optional. Existing product cards will use this value as-is.
+            </FormMessage>
           </div>
         </section>
 
-        {/* Customizations */}
         <section className="aom-card">
           <div className="aom-card-title">Customizations</div>
           <div className="aom-grid aom-2">
-            {["fabrics", "eshra", "paintings", "marble", "glass"].map(
-              (field) => (
-                <div key={field} className="aom-field">
-                  <label>{field[0].toUpperCase() + field.slice(1)}</label>
-                  <div className="aom-inline">
-                    <select
-                      value={sel[field]}
-                      onChange={(e) =>
-                        handleSelectChange(field, e.target.value)
-                      }
-                    >
-                      <option value="">—</option>
-                      {lists[field].map((opt) => (
-                        <option key={opt._id} value={opt._id}>
-                          {opt.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="aom-btn"
-                      onClick={() => addTag(field)}
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  {!!form[field].length && (
-                    <div className="aom-chips">
-                      {form[field].map((id) => (
-                        <span key={id} className="aom-chip">
-                          {findName(lists[field], id)}
-                          <button
-                            type="button"
-                            className="aom-x"
-                            onClick={() => removeTag(field, id)}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+            {PRODUCT_LOOKUP_FIELDS.map((field) => (
+              <div key={field} className="aom-field">
+                <label>{field[0].toUpperCase() + field.slice(1)}</label>
+                <div className="aom-inline">
+                  <select
+                    value={selection[field]}
+                    onChange={(event) =>
+                      handleSelectChange(field, event.target.value)
+                    }
+                  >
+                    <option value="">Select</option>
+                    {lists[field].map((option) => (
+                      <option key={option._id} value={option._id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="aom-btn"
+                    onClick={() => addTag(field)}
+                  >
+                    Add
+                  </button>
                 </div>
-              )
-            )}
+
+                {!!form[field].length && (
+                  <div className="aom-chips">
+                    {form[field].map((id) => (
+                      <span key={id} className="aom-chip">
+                        {findOptionName(lists[field], id)}
+                        <button
+                          type="button"
+                          className="aom-x"
+                          onClick={() => removeTag(field, id)}
+                        >
+                          x
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* Error Message */}
         {error && (
-          <div className="aom-card" style={{ background: "#fee", border: "1px solid #fcc", padding: "12px", margin: "16px 0" }}>
-            <strong style={{ color: "#c33" }}>Error:</strong> {error}
-          </div>
+          <FeedbackMessage variant="error">
+            <strong>Error:</strong> {error}
+          </FeedbackMessage>
         )}
 
-        {/* Footer */}
         <div className="aom-footer">
           <button
             type="button"
@@ -302,11 +309,11 @@ const AddProductModal = ({ onClose, refreshList }) => {
             disabled={!formValid || loading}
             onClick={handleSubmit}
           >
-            {loading ? "⏳ Creating..." : "Save Product"}
+            {loading ? "Creating..." : "Save Product"}
           </button>
-          <button 
-            type="button" 
-            className="aom-ghost" 
+          <button
+            type="button"
+            className="aom-ghost"
             onClick={onClose}
             disabled={loading}
           >

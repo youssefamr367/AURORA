@@ -1,237 +1,239 @@
 .OrderDashboard {
-  padding: 20px;
+  padding: 24px;
   font-family: Arial, sans-serif;
+  color: #0f172a;
 }
 
 .OrderDashboard h1 {
-  margin-bottom: 16px;
+  margin: 0 0 18px;
+  font-size: 1.9rem;
 }
 
-/* Alert */
-.alert-banner {
+.OrderDashboard .alert-banner {
   background: #fef3c7;
-  border: 1px solid #fde047;
+  border: 1px solid #facc15;
   padding: 12px 16px;
-  border-radius: 6px;
+  border-radius: 10px;
   margin-bottom: 20px;
-  font-weight: bold;
+  font-weight: 700;
+  color: #854d0e;
 }
 
-/* Summary cards */
-.summary-cards {
-  display: flex;
+.OrderDashboard .summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
-.summary-cards .card {
-  flex: 1;
-  padding: 16px;
-  border-radius: 6px;
+
+.OrderDashboard .summary-cards .card {
+  padding: 18px;
+  border-radius: 10px;
   color: #1f2937;
-}
-.card.new {
-  background: #bfdbfe;
-}
-.card.manufacturing {
-  background: #fef9c3;
-}
-.card.ready {
-  background: #d1fae5;
-}
-.card.finished {
-  background: #e0e7ff;
-}
-.card h3 {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
-}
-.card p {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: bold;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-/* Tabs + search/export */
-.controls-row {
+.OrderDashboard .card.new {
+  background: #dbeafe;
+}
+
+.OrderDashboard .card.manufacturing {
+  background: #fef3c7;
+}
+
+.OrderDashboard .card.ready {
+  background: #dcfce7;
+}
+
+.OrderDashboard .card.finished {
+  background: #e0e7ff;
+}
+
+.OrderDashboard .card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.OrderDashboard .card p {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.OrderDashboard .controls-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.tabs {
+
+.OrderDashboard .tabs {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
-.tab {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+
+.OrderDashboard .tab {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
   background: #fff;
+  color: #334155;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
-.tab.active {
+
+.OrderDashboard .tab.active {
   background: #1e293b;
   color: #fff;
   border-color: #1e293b;
 }
 
-.search-export {
+.OrderDashboard .search-export {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
-.search-export input {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+
+.OrderDashboard .search-export input {
+  min-width: 250px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
 }
-.export-btn {
-  padding: 8px 14px;
+
+.OrderDashboard .export-btn {
+  padding: 10px 14px;
   background: #1e293b;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 10px;
   cursor: pointer;
 }
 
-/* Table */
-.orders-table {
+.OrderDashboard .orders-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
 }
-.orders-table th,
-.orders-table td {
-  padding: 12px;
-  border: 1px solid #ddd;
+
+.OrderDashboard .orders-table th,
+.OrderDashboard .orders-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e7eb;
   text-align: left;
 }
-.orders-table tr.overdue {
+
+.OrderDashboard .orders-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.OrderDashboard .orders-table tbody tr {
+  cursor: pointer;
+}
+
+.OrderDashboard .orders-table tr.overdue {
   background: #fecaca;
 }
-.bg-red-200 {
+
+.OrderDashboard .bg-red-200 {
   background-color: #fecaca;
 }
-.bg-orange-200 {
+
+.OrderDashboard .bg-orange-200 {
   background-color: #fed7aa;
 }
-.bg-green-200 {
+
+.OrderDashboard .bg-green-200 {
   background-color: #bbf7d0;
 }
-.no-results {
+
+.OrderDashboard .no-results {
   text-align: center;
   color: #555;
   padding: 20px 0;
 }
 
-/* Mobile responsive styles */
 @media (max-width: 768px) {
   .OrderDashboard {
-    padding: 12px;
+    padding: 14px;
   }
 
   .OrderDashboard h1 {
     font-size: 1.5rem;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
 
-  .summary-cards {
+  .OrderDashboard .summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .OrderDashboard .controls-row {
     flex-direction: column;
-    gap: 12px;
-  }
-
-  .summary-cards .card {
-    padding: 12px;
-  }
-
-  .card h3 {
-    font-size: 1rem;
-  }
-
-  .card p {
-    font-size: 1.25rem;
-  }
-
-  .controls-row {
-    flex-direction: column;
-    gap: 12px;
     align-items: stretch;
   }
 
-  .tabs {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .tab {
-    padding: 8px 10px;
-    font-size: 14px;
-    flex: 1;
-    min-width: calc(50% - 3px);
-  }
-
-  .search-export {
+  .OrderDashboard .search-export {
     flex-direction: column;
     width: 100%;
   }
 
-  .search-export input {
+  .OrderDashboard .search-export input,
+  .OrderDashboard .export-btn {
     width: 100%;
-    padding: 10px;
-    font-size: 16px; /* Prevents zoom on iOS */
-  }
-
-  .export-btn {
-    width: 100%;
-    padding: 12px;
+    min-width: 0;
     font-size: 16px;
   }
 
-  /* Convert table to cards on mobile */
-  .orders-table {
+  .OrderDashboard .orders-table {
     display: none;
   }
 
-  .orders-table-mobile {
+  .OrderDashboard .orders-table-mobile {
     display: block;
   }
 
-  .order-card-mobile {
+  .OrderDashboard .order-card-mobile {
     background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px;
     margin-bottom: 12px;
   }
 
-  .order-card-mobile.overdue {
+  .OrderDashboard .order-card-mobile.overdue {
     background: #fecaca;
   }
 
-  .order-card-mobile .card-row {
+  .OrderDashboard .order-card-mobile .card-row {
     display: flex;
     justify-content: space-between;
+    gap: 12px;
     margin-bottom: 8px;
   }
 
-  .order-card-mobile .card-label {
-    font-weight: bold;
-    color: #666;
+  .OrderDashboard .order-card-mobile .card-label {
+    font-weight: 700;
+    color: #475569;
     font-size: 14px;
   }
 
-  .order-card-mobile .card-value {
-    color: #333;
+  .OrderDashboard .order-card-mobile .card-value {
+    color: #0f172a;
     font-size: 14px;
     text-align: right;
     flex: 1;
-    margin-left: 12px;
   }
 }
 
-/* Desktop: hide mobile cards */
 @media (min-width: 769px) {
-  .orders-table-mobile {
+  .OrderDashboard .orders-table-mobile {
     display: none;
   }
 }

@@ -1,18 +1,16 @@
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
   try {
-    const uri = process.env.MONGO_URI || null;
-    if (!uri) {
+    if (!(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
       return res.status(400).json({
         ok: false,
-        message: "MONGO_URI not set",
+        message: "DATABASE_URL or POSTGRES_URL not set",
         environment: process.env.NODE_ENV,
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Lazy import the backend helper to avoid import-time crashes
-    const mod = await import("../backend/server.js");
+    const mod = await import("./app.js");
     if (!mod.ensureDbConnection) {
       return res.status(500).json({
         ok: false,
@@ -22,16 +20,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Try to connect with a timeout
     const connectPromise = mod.ensureDbConnection();
-    const timeout = new Promise((_, rej) =>
-      setTimeout(() => rej(new Error("DB connect timed out")), 5000)
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("DB connect timed out")), 5000)
     );
     await Promise.race([connectPromise, timeout]);
 
     return res.status(200).json({
       ok: true,
-      message: "DB connect succeeded",
+      message: "PostgreSQL connect succeeded",
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
     });

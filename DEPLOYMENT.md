@@ -4,15 +4,19 @@
 
 Set these in your Vercel dashboard under Settings > Environment Variables:
 
-1. **MONGO_URI**: Your MongoDB connection string
+1. **DATABASE_URL**: Your PostgreSQL connection string
 
-   - Example: `mongodb+srv://username:password@cluster.mongodb.net/database_name`
+   - Example: `postgresql://username:password@host:5432/database_name?sslmode=require`
 
 2. **FRONTEND_URL**: Your Vercel app URL (will be provided after deployment)
 
    - Example: `https://your-app-name.vercel.app`
 
 3. **NODE_ENV**: Set to `production`
+
+## Database Setup
+
+Run the SQL in `database/postgresql_schema.sql` against your PostgreSQL database before using the API.
 
 ## Deployment Steps
 
@@ -36,7 +40,7 @@ Set these in your Vercel dashboard under Settings > Environment Variables:
 ## Project Structure for Vercel
 
 - **Frontend**: Built from `/frontend` directory
-- **Backend**: API functions in `/api` directory
+- **Backend**: API functions in `/api` directory using PostgreSQL
 - **Static Files**: Served from `/frontend/dist`
 
 ## API Routes

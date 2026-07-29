@@ -5,23 +5,17 @@ export default async function handler(req, res) {
     const debugInfo = {
       environment: process.env.NODE_ENV,
       vercel: !!process.env.VERCEL,
-      hasMongoUri: !!process.env.MONGO_URI,
-      mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0,
-      mongoUriPrefix: process.env.MONGO_URI
-        ? process.env.MONGO_URI.substring(0, 20) + "..."
-        : "not set",
+      hasDatabaseUrl: !!(process.env.DATABASE_URL || process.env.POSTGRES_URL),
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
       platform: process.platform,
     };
 
-    // Try to import and test the backend
     try {
-      const mod = await import("../backend/server.js");
-      debugInfo.backendImport = "success";
+      const mod = await import("./app.js");
+      debugInfo.appImport = "success";
       debugInfo.hasEnsureDbConnection = !!mod.ensureDbConnection;
 
-      // Try to test the connection
       if (mod.ensureDbConnection) {
         try {
           await mod.ensureDbConnection();
@@ -32,7 +26,7 @@ export default async function handler(req, res) {
         }
       }
     } catch (importErr) {
-      debugInfo.backendImport = "failed";
+      debugInfo.appImport = "failed";
       debugInfo.importError = importErr.message;
     }
 

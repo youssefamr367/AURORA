@@ -1,96 +1,163 @@
-// src/pages/ProductList.jsx
 import { useState, useEffect, useCallback } from "react";
 import ProductModal from "../components/ProductModal.jsx";
 import AddProductModal from "../components/AddProductModal.jsx";
+import { fetchProducts as fetchProductsApi } from "../features/products/api.js";
+import { useResponsivePageSize } from "../shared/hooks/useResponsivePageSize.js";
+import PageState from "../shared/ui/PageState.jsx";
 import "../CSS/ProductList.css";
 
 const ProductList = () => {
-    const [products, setProducts] = useState([]);      // full list
-    const [selected, setSelected] = useState(null);    // for edit modal
-    const [showAdd, setShowAdd] = useState(false);     // for add modal
-    const [searchTerm, setSearchTerm] = useState("");
+  const [products, setProducts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = useResponsivePageSize("products");
 
-    // 1) Define fetchProducts once
-    const fetchProducts = useCallback(async () => {
-        try {
-            // Note the leading slash!
-            const res  = await fetch("/api/Product/getAllProduct");
-            const json = await res.json();
-            if (res.ok) setProducts(json);
-        } catch (err) {
-            console.error("Failed to load products:", err);
-        }
-    }, []);
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-    // 2) Run it on mount
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+    try {
+      setProducts(await fetchProductsApi());
+    } catch (err) {
+      console.error("Failed to load products:", err);
+      setError(err.message || "Failed to load products.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    // 3) filter in-memory by name or ID
-    const filtered = products.filter(p => {
-        const q = searchTerm.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            p.name.toLowerCase().includes(q) ||
-            p.productId.toString().includes(q)
-        );
-    });
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const filtered = products.filter((product) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
 
     return (
-        <div className="ProductList">
-            <div className="header-row">
-                <h2>All Products</h2>
-                <button className="add-button" onClick={() => setShowAdd(true)}>
-                    + Add Product
-                </button>
-            </div>
-
-            {/* Search bar */}
-            <div className="search-row">
-                <input
-                    type="text"
-                    placeholder="Search by name or ID…"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="search-input"
-                />
-            </div>
-
-            <div className="product-grid">
-                {filtered.map(p => (
-                    <div
-                        key={p._id}
-                        className="product-card"
-                        onClick={() => setSelected(p)}
-                    >
-                        <h3>{p.name}</h3>
-                        <p>ID: {p.productId}</p>
-                    </div>
-                ))}
-                {filtered.length === 0 && (
-                    <p className="no-results">No products found.</p>
-                )}
-            </div>
-
-            {/* 4) Edit modal passes fetchProducts so changes show up immediately */}
-            {selected && (
-                <ProductModal
-                    product={selected}
-                    onClose={() => setSelected(null)}
-                    refreshList={fetchProducts}
-                />
-            )}
-
-            {/* 5) Add modal also passes fetchProducts */}
-            {showAdd && (
-                <AddProductModal
-                    onClose={() => setShowAdd(false)}
-                    refreshList={fetchProducts}
-                />
-            )}
-        </div>
+      product.name.toLowerCase().includes(query) ||
+      product.productId.toString().includes(query)
     );
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleProducts = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  return (
+    <div className="ProductList">
+      <div className="header-row">
+        <h2>All Products</h2>
+        <button className="add-button" onClick={() => setShowAdd(true)}>
+          + Add Product
+        </button>
+      </div>
+
+      <div className="search-row">
+        <input
+          type="text"
+          placeholder="Search by name or ID..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="search-input"
+        />
+      </div>
+
+      <div className="product-grid">
+        {loading && (
+          <PageState
+            title="Loading products"
+            description="We are fetching the current product list."
+          />
+        )}
+
+        {!loading && error && (
+          <PageState
+            variant="error"
+            title="Could not load products"
+            description={error}
+          />
+        )}
+
+        {!loading &&
+          !error &&
+          visibleProducts.map((product) => (
+            <div
+              key={product._id}
+              className="product-card"
+              onClick={() => setSelected(product)}
+            >
+              <h3>{product.name}</h3>
+              <p>ID: {product.productId}</p>
+            </div>
+          ))}
+
+        {!loading && !error && filtered.length === 0 && (
+          <PageState
+            title={searchTerm.trim() ? "No matching products" : "No products yet"}
+            description={
+              searchTerm.trim()
+                ? "Try a different product name or ID."
+                : "Add a product to start building orders."
+            }
+            className="no-results"
+          />
+        )}
+      </div>
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className="pagination-row">
+          <button
+            type="button"
+            className="page-button"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          <div className="page-meta">
+            <strong>{filtered.length}</strong> products · Page {currentPage} of {totalPages}
+          </div>
+          <button
+            type="button"
+            className="page-button"
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
+
+      {selected && (
+        <ProductModal
+          product={selected}
+          onClose={() => setSelected(null)}
+          refreshList={fetchProducts}
+        />
+      )}
+
+      {showAdd && (
+        <AddProductModal
+          onClose={() => setShowAdd(false)}
+          refreshList={fetchProducts}
+        />
+      )}
+    </div>
+  );
 };
 
 export default ProductList;

@@ -1,0 +1,133 @@
+.ui-feedback {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ui-feedback strong {
+  color: inherit;
+}
+
+.ui-feedback--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.ui-feedback--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.ui-feedback--info {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ui-form-message {
+  margin-top: 7px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.ui-form-message--error {
+  color: #b91c1c;
+}
+
+.ui-page-state {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  text-align: center;
+}
+
+.ui-page-state strong {
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.ui-page-state span {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.ui-page-state--error {
+  border-style: solid;
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.ui-page-state--error strong {
+  color: #7f1d1d;
+}
+
+.ui-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+.ui-confirm__copy {
+  display: grid;
+  gap: 4px;
+  color: #111827;
+}
+
+.ui-confirm__copy span {
+  font-size: 12px;
+  color: #7f1d1d;
+}
+
+.ui-confirm__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-confirm__button {
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #111827;
+}
+
+.ui-confirm__button--danger {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.ui-confirm__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+  .ui-confirm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ui-confirm__actions {
+    flex-direction: column;
+  }
+}

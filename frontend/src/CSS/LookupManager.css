@@ -1,124 +1,211 @@
 .LookupManager {
-    padding: 20px;
-    font-family: Arial, sans-serif;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  color: #0f172a;
 }
+
 .LookupManager h2 {
-    margin-bottom: 16px;
+  margin: 0 0 8px;
 }
+
+.LookupManager::before {
+  content: "Manage reusable customization options used by products and orders.";
+  display: block;
+  margin-bottom: 16px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.lookup-feedback {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.lookup-feedback--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.lookup-feedback--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
 .tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
+
 .tab {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #fff;
-    cursor: pointer;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
 }
+
+.tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .tab.active {
-    background: #1e293b;
-    color: #fff;
-    border-color: #1e293b;
+  background: #1e293b;
+  color: #fff;
+  border-color: #1e293b;
 }
 
 .add-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
 }
+
 .add-row input {
-    flex: 1;
-    padding: 6px 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
 }
+
 .add-row button {
-    padding: 6px 12px;
-    background: #1e293b;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  padding: 10px 16px;
+  background: #1e293b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.add-row button:disabled,
+.add-row input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .lookup-list {
-    list-style: none;
-    padding: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
 }
+
 .lookup-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
 }
+
+.lookup-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .lookup-list .empty {
-    text-align: center;
-    color: #555;
+  text-align: center;
+  color: #555;
+  background: #f8fafc;
+  border-style: dashed;
 }
+
 .del-btn {
-    background: none;
-    border: none;
-    font-size: 1.2em;
-    color: #dc2626;
-    cursor: pointer;
-}
-.del-btn:hover {
-    opacity: 0.8;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  color: #dc2626;
+  cursor: pointer;
 }
 
-/* Mobile responsive styles */
+.del-btn:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.del-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.lookup-confirm {
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.lookup-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.lookup-confirm-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.lookup-confirm-btn.danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.lookup-confirm-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 @media (max-width: 768px) {
-    .LookupManager {
-        padding: 12px;
-    }
+  .LookupManager {
+    padding: 14px;
+  }
 
-    .LookupManager h2 {
-        font-size: 1.5rem;
-        margin-bottom: 12px;
-    }
+  .LookupManager h2 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
 
-    .tabs {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
+  .add-row {
+    flex-direction: column;
+  }
 
-    .tab {
-        padding: 10px 12px;
-        font-size: 14px;
-        flex: 1;
-        min-width: calc(50% - 3px);
-    }
+  .add-row input,
+  .add-row button {
+    width: 100%;
+    font-size: 16px;
+  }
 
-    .add-row {
-        flex-direction: column;
-        gap: 10px;
-    }
+  .lookup-item-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-    .add-row input {
-        width: 100%;
-        padding: 12px;
-        font-size: 16px; /* Prevents zoom on iOS */
-    }
+  .del-btn {
+    width: 100%;
+  }
 
-    .add-row button {
-        width: 100%;
-        padding: 12px;
-        font-size: 16px;
-    }
+  .lookup-confirm {
+    min-width: 0;
+  }
 
-    .lookup-list li {
-        padding: 12px;
-        font-size: 14px;
-    }
-
-    .del-btn {
-        font-size: 1.5em;
-        padding: 4px 8px;
-        min-width: 40px;
-    }
+  .lookup-confirm-actions {
+    flex-direction: column;
+  }
 }

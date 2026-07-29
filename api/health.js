@@ -4,7 +4,7 @@ export default function handler(req, res) {
     status: "ok",
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
-    hasMongoUri: !!process.env.MONGO_URI,
+    hasDatabaseUrl: !!(process.env.DATABASE_URL || process.env.POSTGRES_URL),
     timestamp: new Date().toISOString(),
   });
 }

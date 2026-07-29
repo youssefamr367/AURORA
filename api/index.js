@@ -1,4 +1,3 @@
-let dbInitialized = false;
 let appInstance = null;
 let ensureDbConnection = null;
 let getLastConnectionError = null;
@@ -6,7 +5,6 @@ let initRoutes = null;
 
 export default async function handler(req, res) {
   try {
-    // Lazy import to avoid import-time failures crashing the function
     if (!appInstance || !ensureDbConnection) {
       const mod = await import("./app.js");
       appInstance = mod.default;
@@ -15,13 +13,10 @@ export default async function handler(req, res) {
       initRoutes = mod.initRoutes;
     }
 
-    // Ensure routes are loaded
     if (initRoutes) {
       await initRoutes();
     }
 
-    // Always try to ensure DB connection for each request in serverless
-    // This handles cold starts and connection drops
     try {
       await ensureDbConnection();
     } catch (dbErr) {
@@ -32,10 +27,9 @@ export default async function handler(req, res) {
       res.setHeader("Content-Type", "application/json");
       return res.status(500).json({
         error: "Database connection failed",
-        message: "Unable to connect to database. Please try again later.",
-        // Temporary debug info — remove after fix
+        message: "Unable to connect to PostgreSQL. Please try again later.",
         debug: {
-          mongoUriPresent: !!process.env.MONGO_URI,
+          databaseUrlPresent: !!(process.env.DATABASE_URL || process.env.POSTGRES_URL),
           dbErrorMessage: dbErr && dbErr.message,
           dbErrorStack: dbErr && dbErr.stack,
           lastConnectionErrorDetails:
@@ -56,7 +50,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Call the Express app directly with Vercel's req/res
     if (!appInstance || typeof appInstance !== "function") {
       throw new Error("Express app is not properly initialized");
     }

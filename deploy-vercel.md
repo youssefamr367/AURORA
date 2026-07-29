@@ -48,9 +48,11 @@ In Vercel dashboard:
 
 | Name           | Value                                                               | Environment |
 | -------------- | ------------------------------------------------------------------- | ----------- |
-| `MONGO_URI`    | `mongodb+srv://username:password@cluster.mongodb.net/database_name` | Production  |
+| `DATABASE_URL` | `postgresql://username:password@host:5432/database_name?sslmode=require` | Production  |
 | `FRONTEND_URL` | `https://your-app-name.vercel.app`                                  | Production  |
 | `NODE_ENV`     | `production`                                                        | Production  |
+
+Before testing the app, run `database/postgresql_schema.sql` against the configured PostgreSQL database.
 
 ## 4. Redeploy
 
@@ -68,6 +70,6 @@ After setting environment variables:
 ## Troubleshooting
 
 - Check Vercel function logs in the dashboard
-- Ensure MongoDB connection string is correct
+- Ensure PostgreSQL connection string is correct
 - Verify all environment variables are set
-- Check that your MongoDB cluster allows connections from Vercel IPs
+- Check that your PostgreSQL provider allows connections from Vercel
